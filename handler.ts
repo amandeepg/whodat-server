@@ -15,41 +15,41 @@ const dayInMs: number = hourInMs * 24
 const weekInMs: number = dayInMs * 7
 const yearInMs: number = weekInMs * 52
 
-interface IHeaderExpires {
+interface HeaderExpires {
     Expires: string;
 }
 
-interface IResponsePayload {
+interface ResponsePayload {
     statusCode: number
-    headers: IHeaderExpires
+    headers: HeaderExpires
     body: string
 }
 
-interface IQueryParameters {
+interface QueryParameters {
     team: string
 }
 
-interface IEventPayload {
+interface EventPayload {
     method: string
-    queryStringParameters: IQueryParameters
+    queryStringParameters: QueryParameters
 }
 
-interface ICallback {
-    (error: any, result: IResponsePayload): void
+interface Callback {
+    (error: any, result: ResponsePayload): void
 }
 
-interface IColor {
+interface Color {
     hex?: Array<string>
     rgb?: Array<string>
 }
 
-interface ITeamColor {
+interface TeamColor {
     name: string
     league: string
-    colors: IColor
+    colors: Color
 }
 
-interface ITeam {
+interface Team {
     abbreviation: string
     city: string
     colour: string
@@ -58,22 +58,22 @@ interface ITeam {
     name: string
 }
 
-interface IGame {
-    awayTeam: ITeam
-    homeTeam: ITeam
+interface Game {
+    awayTeam: Team
+    homeTeam: Team
     date: string
     league: string
     location: string
     time: string
 }
 
-interface IPlayerTeam {
-    player: IPlayer
-    team: ITeam
+interface PlayerTeam {
+    player: Player
+    team: Team
     stats?: any
 }
 
-interface IPlayer {
+interface Player {
     age: string
     birthCity: string
     birthCountry: string
@@ -118,44 +118,44 @@ function normalizeKeys(key: string, value: any) {
     return value
 }
 
-function getTeamsPromise(league: string): Promise<Array<ITeam>> {
+function getTeamsPromise(league: string): Promise<Array<Team>> {
     return request
         .getAsync(getRequestOptions(league + process.env.TEAMS_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.overallteamstandings.teamstandingsentry)
-        .then((teams: Array<IPlayerTeam>) => teams.map((team: IPlayerTeam) => team.team))
-        .tap((teams: Array<ITeam>) => teams.forEach((team: ITeam) => team.league = league))
+        .then((teams: Array<PlayerTeam>) => teams.map((team: PlayerTeam) => team.team))
+        .tap((teams: Array<Team>) => teams.forEach((team: Team) => team.league = league))
 }
 
-function getGamesPromise(league: string, teams: Array<ITeam>): Promise<Array<IGame>> {
+function getGamesPromise(league: string, teams: Array<Team>): Promise<Array<Game>> {
     return request
         .getAsync(getRequestOptions(league + process.env.GAMES_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.fullgameschedule.gameentry)
-        .tap((games: Array<IGame>) => games.forEach((game: IGame) => game.league = league))
-        .tap((games: Array<IGame>) => games.forEach((game: IGame) => {
+        .tap((games: Array<Game>) => games.forEach((game: Game) => game.league = league))
+        .tap((games: Array<Game>) => games.forEach((game: Game) => {
             game.awayTeam = findTeam(teams, game.awayTeam)
             game.homeTeam = findTeam(teams, game.homeTeam)
         }))
 }
 
-function getPlayersPromise(league: string, teams: Array<ITeam>): Promise<Array<IPlayerTeam>> {
+function getPlayersPromise(league: string, teams: Array<Team>): Promise<Array<PlayerTeam>> {
     return request
         .getAsync(getRequestOptions(league + process.env.PLAYERS_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.cumulativeplayerstats.playerstatsentry)
-        .tap((players: Array<IPlayerTeam>) => players.forEach((player: IPlayerTeam) => player.player.league = league))
-        .tap((players: Array<IPlayerTeam>) => players.forEach((player: IPlayerTeam) => {
+        .tap((players: Array<PlayerTeam>) => players.forEach((player: PlayerTeam) => player.player.league = league))
+        .tap((players: Array<PlayerTeam>) => players.forEach((player: PlayerTeam) => {
             player.team = findTeam(teams, player.team)
             player.player.gamesPlayed = player.stats.gamesPlayed["#text"]
             delete player.stats
         }))
 }
 
-function extractHex(colourHash: IColor): string {
+function extractHex(colourHash: Color): string {
     if (colourHash.hex) {
         return colourHash.hex[0]
     } else if (colourHash.rgb) {
@@ -167,7 +167,7 @@ function extractHex(colourHash: IColor): string {
 }
 
 function readAllDataFromApi(): void {
-    var teamsFromApiPromise: Promise.Thenable<Array<ITeam>> = Promise
+    var teamsFromApiPromise: Promise.Thenable<Array<Team>> = Promise
         .all([
             getTeamsPromise("nhl"),
             getTeamsPromise("nba"),
@@ -175,7 +175,7 @@ function readAllDataFromApi(): void {
         ])
         .then(_.flatMap)
 
-    var teamColoursPromise: Promise.Thenable<Array<ITeamColor>> = s3
+    var teamColoursPromise: Promise.Thenable<Array<TeamColor>> = s3
         .getObject({
             Bucket: "player-number",
             Key: "colors.json",
@@ -191,13 +191,13 @@ function readAllDataFromApi(): void {
             teamColoursPromise
         ])
         .spread(addColoursToTeams)
-        .tap((teams: Array<ITeam>) => s3.putObject({
+        .tap((teams: Array<Team>) => s3.putObject({
             Bucket: "player-number",
             Key: "teams.json",
             ContentType: "application/json",
             Body: JSON.stringify(teams)
         }).promise())
-        .then((teams: Array<ITeam>) => {
+        .then((teams: Array<Team>) => {
             var gamesPromise = Promise
                 .all([
                     getGamesPromise("nhl", teams),
@@ -205,7 +205,7 @@ function readAllDataFromApi(): void {
                     getGamesPromise("nfl", teams)
                 ])
                 .then(_.flatMap)
-                .tap((games: Array<IGame>) => s3.putObject({
+                .tap((games: Array<Game>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "games.json",
                     ContentType: "application/json",
@@ -218,7 +218,7 @@ function readAllDataFromApi(): void {
                     getPlayersPromise("nfl", teams)
                 ])
                 .then(_.flatMap)
-                .tap((players: Array<IPlayerTeam>) => s3.putObject({
+                .tap((players: Array<PlayerTeam>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "players.json",
                     ContentType: "application/json",
@@ -228,11 +228,11 @@ function readAllDataFromApi(): void {
         })
 }
 
-function addColoursToTeams(teams: Array<ITeam>, teamColours): Array<ITeam> {
+function addColoursToTeams(teams: Array<Team>, teamColours): Array<Team> {
     return teams.map(team => addColoursToTeam(team, teamColours))
 }
 
-function addColoursToTeam(team: ITeam, teamColours): ITeam {
+function addColoursToTeam(team: Team, teamColours): Team {
     var teamName = team.city + " " + team.name
     var teamColour = teamColours.find(teamColour => normalizeName(teamColour.name) === normalizeName(teamName))
     if (teamColour) {
@@ -245,13 +245,13 @@ function normalizeName(name: string): string {
     return name.replace(/\W+/g, " ")
 }
 
-function findTeam(teams: Array<ITeam>, teamToFind: ITeam): ITeam {
+function findTeam(teams: Array<Team>, teamToFind: Team): Team {
     return teams.find(team => team.id === teamToFind.id)
 }
 
 module.exports.initData = readAllDataFromApi
 
-module.exports.teams = (event: IEventPayload, context, callback: ICallback): void => {
+module.exports.teams = (event: EventPayload, context, callback: Callback): void => {
     s3
         .getObject({
             Bucket: "player-number",
@@ -260,7 +260,7 @@ module.exports.teams = (event: IEventPayload, context, callback: ICallback): voi
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then((teams: Array<ITeam>) => callback(null, {
+        .then((teams: Array<Team>) => callback(null, {
             statusCode: 200,
             headers: {
                 Expires: new Date(Date.now() + weekInMs).toUTCString()
@@ -269,7 +269,7 @@ module.exports.teams = (event: IEventPayload, context, callback: ICallback): voi
         }))
 }
 
-module.exports.players = (event: IEventPayload, context, callback: ICallback): void => {
+module.exports.players = (event: EventPayload, context, callback: Callback): void => {
     if (!event.queryStringParameters) {
         callback(null, {
             statusCode: 200,
@@ -302,16 +302,16 @@ module.exports.players = (event: IEventPayload, context, callback: ICallback): v
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then((players: Array<IPlayerTeam>) => callback(null, {
+        .then((players: Array<PlayerTeam>) => callback(null, {
             statusCode: 200,
             headers: {
                 Expires: new Date(Date.now() + dayInMs).toUTCString()
             },
-            body: JSON.stringify(players.filter((player: IPlayerTeam) => player.team.id === teamId))
+            body: JSON.stringify(players.filter((player: PlayerTeam) => player.team.id === teamId))
         }))
 }
 
-module.exports.games = (event: IEventPayload, context, callback: ICallback): void => {
+module.exports.games = (event: EventPayload, context, callback: Callback): void => {
     // Convert to PST, place of last games of the day in North America
     var pstOffset: number = hourInMs * 8
     var date: Date = new Date(Date.now() - pstOffset)
@@ -326,11 +326,11 @@ module.exports.games = (event: IEventPayload, context, callback: ICallback): voi
         .promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then((games: Array<IGame>) => callback(null, {
+        .then((games: Array<Game>) => callback(null, {
             statusCode: 200,
             headers: {
                 Expires: new Date(new Date().setHours(23, 59, 59, 999) + pstOffset).toUTCString()
             },
-            body: JSON.stringify(games.filter((game: IGame) => game.date === today))
+            body: JSON.stringify(games.filter((game: Game) => game.date === today))
         }))
 }
