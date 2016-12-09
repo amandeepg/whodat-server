@@ -16,25 +16,25 @@ const weekInMs: number = dayInMs * 7
 const yearInMs: number = weekInMs * 52
 
 interface IHeaderExpires {
-    Expires: string; 
+    Expires: string;
 }
 
-interface IResponsePayload {  
+interface IResponsePayload {
     statusCode: number
     headers: IHeaderExpires
     body: string
 }
 
-interface IQueryParameters {  
+interface IQueryParameters {
     team: string
 }
 
-interface IEventPayload {  
+interface IEventPayload {
     method: string
     queryStringParameters: IQueryParameters
 }
 
-interface ICallback {  
+interface ICallback {
     (error: any, result: IResponsePayload): void
 }
 
@@ -76,7 +76,7 @@ interface IPlayerTeam {
 interface IPlayer {
     age: string
     birthCity: string
-    birthCountry: string      
+    birthCountry: string
     birthDate: string
     firstName: string
     gamesPlayed: string
@@ -128,7 +128,7 @@ function getTeamsPromise(league: string): Promise<Array<ITeam>> {
         .tap((teams: Array<ITeam>) => teams.forEach((team: ITeam) => team.league = league))
 }
 
-function getGamesPromise(league:string, teams: Array<ITeam>): Promise<Array<IGame>> {
+function getGamesPromise(league: string, teams: Array<ITeam>): Promise<Array<IGame>> {
     return request
         .getAsync(getRequestOptions(league + process.env.GAMES_URL))
         .then(r => r.body)
@@ -179,7 +179,7 @@ function readAllDataFromApi(): void {
         .getObject({
             Bucket: "player-number",
             Key: "colors.json",
-            ResponseContentType :"application/json"
+            ResponseContentType: "application/json"
         })
         .promise()
         .then(data => data.Body.toString())
@@ -194,7 +194,7 @@ function readAllDataFromApi(): void {
         .tap((teams: Array<ITeam>) => s3.putObject({
             Bucket: "player-number",
             Key: "teams.json",
-            ContentType :"application/json",
+            ContentType: "application/json",
             Body: JSON.stringify(teams)
         }).promise())
         .then((teams: Array<ITeam>) => {
@@ -208,7 +208,7 @@ function readAllDataFromApi(): void {
                 .tap((games: Array<IGame>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "games.json",
-                    ContentType :"application/json",
+                    ContentType: "application/json",
                     Body: JSON.stringify(games)
                 }).promise())
             var playersPromise = Promise
@@ -221,7 +221,7 @@ function readAllDataFromApi(): void {
                 .tap((players: Array<IPlayerTeam>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "players.json",
-                    ContentType :"application/json",
+                    ContentType: "application/json",
                     Body: JSON.stringify(players)
                 }).promise())
             return Promise.all([gamesPromise, playersPromise]).then(() => teams)
@@ -256,7 +256,7 @@ module.exports.teams = (event: IEventPayload, context, callback: ICallback): voi
         .getObject({
             Bucket: "player-number",
             Key: "teams.json",
-            ResponseContentType :"application/json"
+            ResponseContentType: "application/json"
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
@@ -298,7 +298,7 @@ module.exports.players = (event: IEventPayload, context, callback: ICallback): v
         .getObject({
             Bucket: "player-number",
             Key: "players.json",
-            ResponseContentType :"application/json"
+            ResponseContentType: "application/json"
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
@@ -321,7 +321,7 @@ module.exports.games = (event: IEventPayload, context, callback: ICallback): voi
         .getObject({
             Bucket: "player-number",
             Key: "games.json",
-            ResponseContentType :"application/json"
+            ResponseContentType: "application/json"
         })
         .promise()
         .then(data => data.Body.toString())
