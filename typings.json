@@ -1,4 +1,12 @@
 {
   "name": "player-number",
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "bluebird": "registry:npm/bluebird#3.4.1+20160909132857",
+    "dateformat": "registry:npm/dateformat#1.0.0+20160723033700",
+    "lodash": "registry:npm/lodash#4.0.0+20161015015725"
+  },
+  "globalDevDependencies": {
+    "node": "registry:dt/node#6.0.0+20161121110008"
+  }
 }

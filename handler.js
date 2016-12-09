@@ -1,18 +1,19 @@
-var _ = require("lodash");
-var request = require("request");
-var Promise = require("bluebird");
-var rgb2hex = require("rgb-hex");
-var dateFormat = require("dateformat");
-var AWS = require("aws-sdk");
+"use strict";
+const _ = require("lodash");
+const request = require("request");
+const Promise = require("bluebird");
+const rgb2hex = require("rgb-hex");
+const dateFormat = require("dateformat");
+const AWS = require("aws-sdk");
 AWS.config.setPromisesDependency(Promise);
 var s3 = new AWS.S3();
 Promise.promisifyAll(request);
-var secondInMs = 1000;
-var minuteInMs = secondInMs * 60;
-var hourInMs = minuteInMs * 60;
-var dayInMs = hourInMs * 24;
-var weekInMs = dayInMs * 7;
-var yearInMs = weekInMs * 52;
+const secondInMs = 1000;
+const minuteInMs = secondInMs * 60;
+const hourInMs = minuteInMs * 60;
+const dayInMs = hourInMs * 24;
+const weekInMs = dayInMs * 7;
+const yearInMs = weekInMs * 52;
 function getRequestOptions(url) {
     return {
         method: "GET",
@@ -43,43 +44,43 @@ function normalizeKeys(key, value) {
 function getTeamsPromise(league) {
     return request
         .getAsync(getRequestOptions(league + process.env.TEAMS_URL))
-        .then(function (r) { return r.body; })
-        .then(function (b) { return JSON.parse(b, normalizeKeys); })
-        .then(function (j) { return j.overallteamstandings.teamstandingsentry; })
-        .then(function (teams) { return teams.map(function (team) { return team.team; }); })
-        .tap(function (teams) { return teams.forEach(function (team) { return team.league = league; }); });
+        .then(r => r.body)
+        .then(b => JSON.parse(b, normalizeKeys))
+        .then(j => j.overallteamstandings.teamstandingsentry)
+        .then((teams) => teams.map((team) => team.team))
+        .tap((teams) => teams.forEach((team) => team.league = league));
 }
 function getGamesPromise(league, teams) {
     return request
         .getAsync(getRequestOptions(league + process.env.GAMES_URL))
-        .then(function (r) { return r.body; })
-        .then(function (b) { return JSON.parse(b, normalizeKeys); })
-        .then(function (j) { return j.fullgameschedule.gameentry; })
-        .tap(function (games) { return games.forEach(function (game) { return game.league = league; }); })
-        .tap(function (games) { return games.forEach(function (game) {
+        .then(r => r.body)
+        .then(b => JSON.parse(b, normalizeKeys))
+        .then(j => j.fullgameschedule.gameentry)
+        .tap((games) => games.forEach((game) => game.league = league))
+        .tap((games) => games.forEach((game) => {
         game.awayTeam = findTeam(teams, game.awayTeam);
         game.homeTeam = findTeam(teams, game.homeTeam);
-    }); });
+    }));
 }
 function getPlayersPromise(league, teams) {
     return request
         .getAsync(getRequestOptions(league + process.env.PLAYERS_URL))
-        .then(function (r) { return r.body; })
-        .then(function (b) { return JSON.parse(b, normalizeKeys); })
-        .then(function (j) { return j.cumulativeplayerstats.playerstatsentry; })
-        .tap(function (players) { return players.forEach(function (player) { return player.player.league = league; }); })
-        .tap(function (players) { return players.forEach(function (player) {
+        .then(r => r.body)
+        .then(b => JSON.parse(b, normalizeKeys))
+        .then(j => j.cumulativeplayerstats.playerstatsentry)
+        .tap((players) => players.forEach((player) => player.player.league = league))
+        .tap((players) => players.forEach((player) => {
         player.team = findTeam(teams, player.team);
         player.player.gamesPlayed = player.stats.gamesPlayed["#text"];
         delete player.stats;
-    }); });
+    }));
 }
 function extractHex(colourHash) {
     if (colourHash.hex) {
         return colourHash.hex[0];
     }
     else if (colourHash.rgb) {
-        return rgb2hex.apply(null, colourHash.rgb[0].split(" ").map(function (s) { return parseInt(s); }));
+        return rgb2hex.apply(null, colourHash.rgb[0].split(" ").map(s => parseInt(s)));
     }
     else {
         console.log(colourHash);
@@ -99,8 +100,9 @@ function readAllDataFromApi() {
         Bucket: "player-number",
         Key: "colors.json",
         ResponseContentType: "application/json"
-    }).promise()
-        .then(function (data) { return data.Body.toString(); })
+    })
+        .promise()
+        .then(data => data.Body.toString())
         .then(JSON.parse);
     var teamsWithColorsPromise = Promise
         .all([
@@ -108,13 +110,13 @@ function readAllDataFromApi() {
         teamColoursPromise
     ])
         .spread(addColoursToTeams)
-        .tap(function (teams) { return s3.putObject({
+        .tap((teams) => s3.putObject({
         Bucket: "player-number",
         Key: "teams.json",
         ContentType: "application/json",
         Body: JSON.stringify(teams)
-    }).promise(); })
-        .then(function (teams) {
+    }).promise())
+        .then((teams) => {
         var gamesPromise = Promise
             .all([
             getGamesPromise("nhl", teams),
@@ -122,12 +124,12 @@ function readAllDataFromApi() {
             getGamesPromise("nfl", teams)
         ])
             .then(_.flatMap)
-            .tap(function (games) { return s3.putObject({
+            .tap((games) => s3.putObject({
             Bucket: "player-number",
             Key: "games.json",
             ContentType: "application/json",
             Body: JSON.stringify(games)
-        }).promise(); });
+        }).promise());
         var playersPromise = Promise
             .all([
             getPlayersPromise("nhl", teams),
@@ -135,21 +137,21 @@ function readAllDataFromApi() {
             getPlayersPromise("nfl", teams)
         ])
             .then(_.flatMap)
-            .tap(function (players) { return s3.putObject({
+            .tap((players) => s3.putObject({
             Bucket: "player-number",
             Key: "players.json",
             ContentType: "application/json",
             Body: JSON.stringify(players)
-        }).promise(); });
-        return Promise.all([gamesPromise, playersPromise]).then(function () { return teams; });
+        }).promise());
+        return Promise.all([gamesPromise, playersPromise]).then(() => teams);
     });
 }
 function addColoursToTeams(teams, teamColours) {
-    return teams.map(function (team) { return addColoursToTeam(team, teamColours); });
+    return teams.map(team => addColoursToTeam(team, teamColours));
 }
 function addColoursToTeam(team, teamColours) {
     var teamName = team.city + " " + team.name;
-    var teamColour = teamColours.find(function (teamColour) { return normalizeName(teamColour.name) === normalizeName(teamName); });
+    var teamColour = teamColours.find(teamColour => normalizeName(teamColour.name) === normalizeName(teamName));
     if (teamColour) {
         team.colour = extractHex(teamColour.colors);
     }
@@ -159,43 +161,43 @@ function normalizeName(name) {
     return name.replace(/\W+/g, " ");
 }
 function findTeam(teams, teamToFind) {
-    return teams.find(function (team) { return team.id === teamToFind.id; });
+    return teams.find(team => team.id === teamToFind.id);
 }
 module.exports.initData = readAllDataFromApi;
-module.exports.teams = function (event, context, callback) {
+module.exports.teams = (event, context, callback) => {
     s3
         .getObject({
         Bucket: "player-number",
         Key: "teams.json",
         ResponseContentType: "application/json"
     }).promise()
-        .then(function (data) { return data.Body.toString(); })
+        .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(function (teams) { return callback(null, {
+        .then((teams) => callback(null, {
         statusCode: 200,
         headers: {
-            "Expires": new Date(Date.now() + weekInMs).toUTCString()
+            Expires: new Date(Date.now() + weekInMs).toUTCString()
         },
         body: JSON.stringify(teams)
-    }); });
+    }));
 };
-module.exports.players = function (event, context, callback) {
+module.exports.players = (event, context, callback) => {
     if (!event.queryStringParameters) {
         callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + yearInMs).toUTCString()
             },
             body: JSON.stringify([])
         });
         return;
     }
-    var team1 = event.queryStringParameters.team;
-    if (!team1) {
+    var teamId = event.queryStringParameters.team;
+    if (!teamId) {
         callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + yearInMs).toUTCString()
             },
             body: JSON.stringify([])
         });
@@ -207,17 +209,17 @@ module.exports.players = function (event, context, callback) {
         Key: "players.json",
         ResponseContentType: "application/json"
     }).promise()
-        .then(function (data) { return data.Body.toString(); })
+        .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(function (players) { return callback(null, {
+        .then((players) => callback(null, {
         statusCode: 200,
         headers: {
-            "Expires": new Date(Date.now() + dayInMs).toUTCString()
+            Expires: new Date(Date.now() + dayInMs).toUTCString()
         },
-        body: JSON.stringify(players.filter(function (player) { return player.team.id === team1; }))
-    }); });
+        body: JSON.stringify(players.filter((player) => player.team.id === teamId))
+    }));
 };
-module.exports.games = function (event, context, callback) {
+module.exports.games = (event, context, callback) => {
     // Convert to PST, place of last games of the day in North America
     var pstOffset = hourInMs * 8;
     var date = new Date(Date.now() - pstOffset);
@@ -227,14 +229,15 @@ module.exports.games = function (event, context, callback) {
         Bucket: "player-number",
         Key: "games.json",
         ResponseContentType: "application/json"
-    }).promise()
-        .then(function (data) { return data.Body.toString(); })
+    })
+        .promise()
+        .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(function (games) { return callback(null, {
+        .then((games) => callback(null, {
         statusCode: 200,
         headers: {
             Expires: new Date(new Date().setHours(23, 59, 59, 999) + pstOffset).toUTCString()
         },
-        body: JSON.stringify(games.filter(function (game) { return game.date === today; }))
-    }); });
+        body: JSON.stringify(games.filter((game) => game.date === today))
+    }));
 };

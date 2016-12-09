@@ -1,19 +1,19 @@
-const _ = require("lodash")
-const request = require("request")
-const Promise = require("bluebird")
-const rgb2hex = require("rgb-hex")
-const dateFormat = require("dateformat")
-const AWS = require("aws-sdk")
+import _ = require("lodash")
+import request = require("request")
+import Promise = require("bluebird")
+import rgb2hex = require("rgb-hex")
+import dateFormat = require("dateformat")
+import AWS = require("aws-sdk")
 AWS.config.setPromisesDependency(Promise)
 var s3 = new AWS.S3()
 Promise.promisifyAll(request)
 
-const secondInMs = 1000
-const minuteInMs = secondInMs * 60
-const hourInMs = minuteInMs * 60
-const dayInMs = hourInMs * 24
-const weekInMs = dayInMs * 7
-const yearInMs = weekInMs * 52
+const secondInMs: number = 1000
+const minuteInMs: number = secondInMs * 60
+const hourInMs: number = minuteInMs * 60
+const dayInMs: number = hourInMs * 24
+const weekInMs: number = dayInMs * 7
+const yearInMs: number = weekInMs * 52
 
 interface IHeaderExpires {
     Expires: string; 
@@ -39,8 +39,55 @@ interface ICallback {
 }
 
 interface IColor {
-    hex: Array<string>
-    rgb: Array<string>
+    hex?: Array<string>
+    rgb?: Array<string>
+}
+
+interface ITeamColor {
+    name: string
+    league: string
+    colors: IColor
+}
+
+interface ITeam {
+    abbreviation: string
+    city: string
+    colour: string
+    id: string
+    league: string
+    name: string
+}
+
+interface IGame {
+    awayTeam: ITeam
+    homeTeam: ITeam
+    date: string
+    league: string
+    location: string
+    time: string
+}
+
+interface IPlayerTeam {
+    player: IPlayer
+    team: ITeam
+    stats?: any
+}
+
+interface IPlayer {
+    age: string
+    birthCity: string
+    birthCountry: string      
+    birthDate: string
+    firstName: string
+    gamesPlayed: string
+    height: string
+    id: string
+    isRookie: string
+    jerseyNumber: string
+    lastName: string
+    league: string
+    position: string
+    weight: string
 }
 
 function getRequestOptions(url: string) {
@@ -55,7 +102,7 @@ function getRequestOptions(url: string) {
     }
 }
 
-function normalizeKeys(key, value) {
+function normalizeKeys(key: string, value: any) {
     if (value && typeof value === "object") {
         for (var k in value) {
             if (/^[A-Z]/.test(k) && Object.hasOwnProperty.call(value, k)) {
@@ -71,44 +118,44 @@ function normalizeKeys(key, value) {
     return value
 }
 
-function getTeamsPromise(league: string) {
+function getTeamsPromise(league: string): Promise<Array<ITeam>> {
     return request
         .getAsync(getRequestOptions(league + process.env.TEAMS_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.overallteamstandings.teamstandingsentry)
-        .then(teams => teams.map(team => team.team))
-        .tap(teams => teams.forEach(team => team.league = league))
+        .then((teams: Array<IPlayerTeam>) => teams.map((team: IPlayerTeam) => team.team))
+        .tap((teams: Array<ITeam>) => teams.forEach((team: ITeam) => team.league = league))
 }
 
-function getGamesPromise(league:string, teams) {
+function getGamesPromise(league:string, teams: Array<ITeam>): Promise<Array<IGame>> {
     return request
         .getAsync(getRequestOptions(league + process.env.GAMES_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.fullgameschedule.gameentry)
-        .tap(games => games.forEach(game => game.league = league))
-        .tap(games => games.forEach(game => {
+        .tap((games: Array<IGame>) => games.forEach((game: IGame) => game.league = league))
+        .tap((games: Array<IGame>) => games.forEach((game: IGame) => {
             game.awayTeam = findTeam(teams, game.awayTeam)
             game.homeTeam = findTeam(teams, game.homeTeam)
         }))
 }
 
-function getPlayersPromise(league: string, teams) {
+function getPlayersPromise(league: string, teams: Array<ITeam>): Promise<Array<IPlayerTeam>> {
     return request
         .getAsync(getRequestOptions(league + process.env.PLAYERS_URL))
         .then(r => r.body)
         .then(b => JSON.parse(b, normalizeKeys))
         .then(j => j.cumulativeplayerstats.playerstatsentry)
-        .tap(players => players.forEach(player => player.player.league = league))
-        .tap(players => players.forEach(player => {
+        .tap((players: Array<IPlayerTeam>) => players.forEach((player: IPlayerTeam) => player.player.league = league))
+        .tap((players: Array<IPlayerTeam>) => players.forEach((player: IPlayerTeam) => {
             player.team = findTeam(teams, player.team)
             player.player.gamesPlayed = player.stats.gamesPlayed["#text"]
             delete player.stats
         }))
 }
 
-function extractHex(colourHash: IColor) {
+function extractHex(colourHash: IColor): string {
     if (colourHash.hex) {
         return colourHash.hex[0]
     } else if (colourHash.rgb) {
@@ -119,8 +166,8 @@ function extractHex(colourHash: IColor) {
     }
 }
 
-function readAllDataFromApi() {
-    var teamsFromApiPromise = Promise
+function readAllDataFromApi(): void {
+    var teamsFromApiPromise: Promise.Thenable<Array<ITeam>> = Promise
         .all([
             getTeamsPromise("nhl"),
             getTeamsPromise("nba"),
@@ -128,27 +175,29 @@ function readAllDataFromApi() {
         ])
         .then(_.flatMap)
 
-    var teamColoursPromise = s3
+    var teamColoursPromise: Promise.Thenable<Array<ITeamColor>> = s3
         .getObject({
             Bucket: "player-number",
             Key: "colors.json",
             ResponseContentType :"application/json"
-        }).promise()
+        })
+        .promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
+
     var teamsWithColorsPromise = Promise
         .all([
             teamsFromApiPromise,
             teamColoursPromise
         ])
         .spread(addColoursToTeams)
-        .tap(teams => s3.putObject({
+        .tap((teams: Array<ITeam>) => s3.putObject({
             Bucket: "player-number",
             Key: "teams.json",
             ContentType :"application/json",
             Body: JSON.stringify(teams)
         }).promise())
-        .then(teams => {
+        .then((teams: Array<ITeam>) => {
             var gamesPromise = Promise
                 .all([
                     getGamesPromise("nhl", teams),
@@ -156,7 +205,7 @@ function readAllDataFromApi() {
                     getGamesPromise("nfl", teams)
                 ])
                 .then(_.flatMap)
-                .tap(games => s3.putObject({
+                .tap((games: Array<IGame>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "games.json",
                     ContentType :"application/json",
@@ -169,7 +218,7 @@ function readAllDataFromApi() {
                     getPlayersPromise("nfl", teams)
                 ])
                 .then(_.flatMap)
-                .tap(players => s3.putObject({
+                .tap((players: Array<IPlayerTeam>) => s3.putObject({
                     Bucket: "player-number",
                     Key: "players.json",
                     ContentType :"application/json",
@@ -179,11 +228,11 @@ function readAllDataFromApi() {
         })
 }
 
-function addColoursToTeams(teams, teamColours) {
+function addColoursToTeams(teams: Array<ITeam>, teamColours): Array<ITeam> {
     return teams.map(team => addColoursToTeam(team, teamColours))
 }
 
-function addColoursToTeam(team, teamColours) {
+function addColoursToTeam(team: ITeam, teamColours): ITeam {
     var teamName = team.city + " " + team.name
     var teamColour = teamColours.find(teamColour => normalizeName(teamColour.name) === normalizeName(teamName))
     if (teamColour) {
@@ -192,17 +241,17 @@ function addColoursToTeam(team, teamColours) {
     return team
 }
 
-function normalizeName(name) {
+function normalizeName(name: string): string {
     return name.replace(/\W+/g, " ")
 }
 
-function findTeam(teams, teamToFind) {
+function findTeam(teams: Array<ITeam>, teamToFind: ITeam): ITeam {
     return teams.find(team => team.id === teamToFind.id)
 }
 
 module.exports.initData = readAllDataFromApi
 
-module.exports.teams = (event: IEventPayload, context, callback: ICallback) => {
+module.exports.teams = (event: IEventPayload, context, callback: ICallback): void => {
     s3
         .getObject({
             Bucket: "player-number",
@@ -211,34 +260,34 @@ module.exports.teams = (event: IEventPayload, context, callback: ICallback) => {
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(teams => callback(null, {
+        .then((teams: Array<ITeam>) => callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + weekInMs).toUTCString()
+                Expires: new Date(Date.now() + weekInMs).toUTCString()
             },
             body: JSON.stringify(teams)
         }))
 }
 
-module.exports.players = (event: IEventPayload, context, callback: ICallback) => {
+module.exports.players = (event: IEventPayload, context, callback: ICallback): void => {
     if (!event.queryStringParameters) {
         callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + yearInMs).toUTCString()
             },
             body: JSON.stringify([])
         })
         return
     }
 
-    var team1 = event.queryStringParameters.team
+    var teamId: string = event.queryStringParameters.team
 
-    if (!team1) {
+    if (!teamId) {
         callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + yearInMs).toUTCString()
             },
             body: JSON.stringify([])
         })
@@ -253,34 +302,35 @@ module.exports.players = (event: IEventPayload, context, callback: ICallback) =>
         }).promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(players => callback(null, {
+        .then((players: Array<IPlayerTeam>) => callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(Date.now() + dayInMs).toUTCString()
+                Expires: new Date(Date.now() + dayInMs).toUTCString()
             },
-            body: JSON.stringify(players.filter(player => player.team.id === team1))
+            body: JSON.stringify(players.filter((player: IPlayerTeam) => player.team.id === teamId))
         }))
 }
 
-module.exports.games = (event: IEventPayload, context, callback: ICallback) => {
+module.exports.games = (event: IEventPayload, context, callback: ICallback): void => {
     // Convert to PST, place of last games of the day in North America
-    var pstOffset = hourInMs * 8
-    var date = new Date(Date.now() - pstOffset)
-    var today = dateFormat(date, "yyyy-mm-dd")
+    var pstOffset: number = hourInMs * 8
+    var date: Date = new Date(Date.now() - pstOffset)
+    var today: string = dateFormat(date, "yyyy-mm-dd")
 
     s3
         .getObject({
             Bucket: "player-number",
             Key: "games.json",
             ResponseContentType :"application/json"
-        }).promise()
+        })
+        .promise()
         .then(data => data.Body.toString())
         .then(JSON.parse)
-        .then(games => callback(null, {
+        .then((games: Array<IGame>) => callback(null, {
             statusCode: 200,
             headers: {
-                "Expires": new Date(new Date().setHours(23, 59, 59, 999) + pstOffset).toUTCString()
+                Expires: new Date(new Date().setHours(23, 59, 59, 999) + pstOffset).toUTCString()
             },
-            body: JSON.stringify(games.filter(game => game.date === today))
+            body: JSON.stringify(games.filter((game: IGame) => game.date === today))
         }))
 }
