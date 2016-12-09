@@ -1,0 +1,40 @@
+service: player-number
+
+provider:
+  name: aws
+  runtime: nodejs4.3
+  region: us-east-1
+  memorySize: 1024
+  profile: ${file(.provider-profile.yml)}
+  role: ${file(.provider-role.yml)}
+  environment: ${file(.provider-environment.yml)}
+
+functions:
+  initData:
+    handler: handler.initData
+    description: Initialize the teams, games, and players into S3
+    timeout: 60
+    memorySize: 256
+    events:
+      - schedule: rate(12 hours)
+  teams:
+    handler: handler.teams
+    description: Retrieve all teams across all leagues
+    events:
+      - http:
+          path: 1/teams.json
+          method: get
+  players:
+    handler: handler.players
+    description: Retrieve players from 2 teams
+    events:
+      - http:
+          path: 1/players.json
+          method: get
+  games:
+    handler: handler.games
+    description: Retrieve the current days games
+    events:
+      - http:
+          path: 1/games.json
+          method: get

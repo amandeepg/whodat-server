@@ -1,0 +1,15 @@
+{
+  "name": "player-number",
+  "dependencies": {
+    "aws-sdk": "^2.7.8",
+    "bluebird": "^3.4.6",
+    "dateformat": "^2.0.0",
+    "lodash": "^4.16.6",
+    "request": "^2.78.0",
+    "rgb-hex": "^2.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "0.0.2",
+    "typescript": "^2.1.4"
+  }
+}
