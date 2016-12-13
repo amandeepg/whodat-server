@@ -2,6 +2,8 @@ service: player-number
 
 provider:
   name: aws
+  apiKeys:
+    - firstKey
   runtime: nodejs4.3
   region: us-east-1
   memorySize: 1024
@@ -24,6 +26,7 @@ functions:
       - http:
           path: 1/teams.json
           method: get
+          private: true
   players:
     handler: handler.players
     description: Retrieve players from 2 teams
@@ -31,6 +34,7 @@ functions:
       - http:
           path: 1/players.json
           method: get
+          private: true
   games:
     handler: handler.games
     description: Retrieve the current days games
@@ -38,3 +42,4 @@ functions:
       - http:
           path: 1/games.json
           method: get
+          private: true
