@@ -3,7 +3,7 @@ service: player-number
 provider:
   name: aws
   apiKeys:
-    - firstKey
+    - ${opt:stage}-firstKey
   runtime: nodejs4.3
   region: us-east-1
   memorySize: 1024
