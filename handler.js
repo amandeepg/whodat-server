@@ -5,6 +5,7 @@ const Promise = require("bluebird");
 const rgb2hex = require("rgb-hex");
 const dateFormat = require("dateformat");
 const AWS = require("aws-sdk");
+var positions = require('./positions');
 AWS.config.setPromisesDependency(Promise);
 var s3 = new AWS.S3();
 Promise.promisifyAll(request);
@@ -73,7 +74,18 @@ function getPlayersPromise(league, teams) {
         player.team = findTeam(teams, player.team);
         player.player.gamesPlayed = player.stats.gamesPlayed["#text"];
         delete player.stats;
-    }));
+    }))
+        .tap((players) => players.forEach((player) => player.player.position = convertPosition(player.player)));
+}
+function convertPosition(player) {
+    const fullPosition = positions.positionsMap.get(player.league + "-" + player.position);
+    if (fullPosition) {
+        return fullPosition;
+    }
+    else {
+        console.log("ERROR: " + JSON.stringify(player));
+        return player.position;
+    }
 }
 function extractHex(colourHash) {
     if (colourHash.hex) {
@@ -97,7 +109,7 @@ function readAllDataFromApi() {
         .then(_.flatMap);
     var teamColoursPromise = s3
         .getObject({
-        Bucket: "player-number",
+        Bucket: process.env.S3_BUCKET,
         Key: "colors.json",
         ResponseContentType: "application/json"
     })
@@ -111,7 +123,7 @@ function readAllDataFromApi() {
     ])
         .spread(addColoursToTeams)
         .tap((teams) => s3.putObject({
-        Bucket: "player-number",
+        Bucket: process.env.S3_BUCKET,
         Key: "teams.json",
         ContentType: "application/json",
         Body: JSON.stringify(teams)
@@ -125,7 +137,7 @@ function readAllDataFromApi() {
         ])
             .then(_.flatMap)
             .tap((games) => s3.putObject({
-            Bucket: "player-number",
+            Bucket: process.env.S3_BUCKET,
             Key: "games.json",
             ContentType: "application/json",
             Body: JSON.stringify(games)
@@ -138,7 +150,7 @@ function readAllDataFromApi() {
         ])
             .then(_.flatMap)
             .tap((players) => s3.putObject({
-            Bucket: "player-number",
+            Bucket: process.env.S3_BUCKET,
             Key: "players.json",
             ContentType: "application/json",
             Body: JSON.stringify(players)
@@ -167,7 +179,7 @@ module.exports.initData = readAllDataFromApi;
 module.exports.teams = (event, context, callback) => {
     s3
         .getObject({
-        Bucket: "player-number",
+        Bucket: process.env.S3_BUCKET,
         Key: "teams.json",
         ResponseContentType: "application/json"
     }).promise()
@@ -205,7 +217,7 @@ module.exports.players = (event, context, callback) => {
     }
     s3
         .getObject({
-        Bucket: "player-number",
+        Bucket: process.env.S3_BUCKET,
         Key: "players.json",
         ResponseContentType: "application/json"
     }).promise()
@@ -226,7 +238,7 @@ module.exports.games = (event, context, callback) => {
     var today = dateFormat(date, "yyyy-mm-dd");
     s3
         .getObject({
-        Bucket: "player-number",
+        Bucket: process.env.S3_BUCKET,
         Key: "games.json",
         ResponseContentType: "application/json"
     })
