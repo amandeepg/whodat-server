@@ -248,7 +248,7 @@ module.exports.games = (event, context, callback) => {
         .then((games) => callback(null, {
         statusCode: 200,
         headers: {
-            Expires: new Date(new Date().setHours(23, 59, 59, 999) + pstOffset).toUTCString()
+            Expires: new Date(new Date(date).setHours(23, 59, 59, 999) + pstOffset).toUTCString()
         },
         body: JSON.stringify(games.filter((game) => game.date === today))
     }));
