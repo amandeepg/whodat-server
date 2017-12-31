@@ -41,6 +41,22 @@ m.set("nfl-KR", "Kick returner");
 m.set("nfl-PR", "Punt returner");
 m.set("nfl-FB", "Fullback");
 m.set("nfl-DE", "Defensive end");
+m.set("mlb-1B", "First base");
+m.set("mlb-2B", "Second base");
+m.set("mlb-3B", "Third base");
+m.set("mlb-SS", "Shortstop");
+m.set("mlb-C", "Catcher");
+m.set("mlb-CI", "Corner infield");
+m.set("mlb-MI", "Middle infield");
+m.set("mlb-IF", "Infield");
+m.set("mlb-LF", "Left field");
+m.set("mlb-CF", "Center field");
+m.set("mlb-RF", "Right field");
+m.set("mlb-OF", "Outfield");
+m.set("mlb-SP", "Starting pitcher");
+m.set("mlb-RP", "Relief pitcher");
+m.set("mlb-P", "Pitcher");
+m.set("mlb-DH", "Designed hitter");
 module.exports = {
     positionsMap: m
 };

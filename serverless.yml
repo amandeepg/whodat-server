@@ -16,7 +16,7 @@ functions:
     handler: handler.initData
     description: Initialize the teams, games, and players into S3
     timeout: 60
-    memorySize: 256
+    memorySize: 384
     events:
       - schedule: rate(12 hours)
   teams:

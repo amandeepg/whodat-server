@@ -14,7 +14,6 @@ const minuteInMs = secondInMs * 60;
 const hourInMs = minuteInMs * 60;
 const dayInMs = hourInMs * 24;
 const weekInMs = dayInMs * 7;
-const yearInMs = weekInMs * 52;
 function getRequestOptions(url) {
     return {
         method: "GET",
@@ -104,7 +103,8 @@ function readAllDataFromApi() {
         .all([
         getTeamsPromise("nhl"),
         getTeamsPromise("nba"),
-        getTeamsPromise("nfl")
+        getTeamsPromise("nfl"),
+        getTeamsPromise("mlb")
     ])
         .then(_.flatMap);
     var teamColoursPromise = s3
@@ -133,7 +133,8 @@ function readAllDataFromApi() {
             .all([
             getGamesPromise("nhl", teams),
             getGamesPromise("nba", teams),
-            getGamesPromise("nfl", teams)
+            getGamesPromise("nfl", teams),
+            getGamesPromise("mlb", teams)
         ])
             .then(_.flatMap)
             .tap((games) => s3.putObject({
@@ -146,7 +147,8 @@ function readAllDataFromApi() {
             .all([
             getPlayersPromise("nhl", teams),
             getPlayersPromise("nba", teams),
-            getPlayersPromise("nfl", teams)
+            getPlayersPromise("nfl", teams),
+            getPlayersPromise("mlb", teams)
         ])
             .then(_.flatMap)
             .tap((players) => s3.putObject({
@@ -198,7 +200,7 @@ module.exports.players = (event, context, callback) => {
         callback(null, {
             statusCode: 200,
             headers: {
-                Expires: new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + weekInMs).toUTCString()
             },
             body: JSON.stringify([])
         });
@@ -209,7 +211,7 @@ module.exports.players = (event, context, callback) => {
         callback(null, {
             statusCode: 200,
             headers: {
-                Expires: new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + weekInMs).toUTCString()
             },
             body: JSON.stringify([])
         });
@@ -228,7 +230,7 @@ module.exports.players = (event, context, callback) => {
         headers: {
             Expires: new Date(Date.now() + dayInMs).toUTCString()
         },
-        body: JSON.stringify(players.filter((player) => player.team.id === teamId))
+        body: JSON.stringify(players.filter((player) => player.team && player.team.id === teamId))
     }));
 };
 module.exports.games = (event, context, callback) => {

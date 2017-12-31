@@ -14,7 +14,6 @@ const minuteInMs: number = secondInMs * 60
 const hourInMs: number = minuteInMs * 60
 const dayInMs: number = hourInMs * 24
 const weekInMs: number = dayInMs * 7
-const yearInMs: number = weekInMs * 52
 
 interface HeaderExpires {
     Expires: string;
@@ -183,7 +182,8 @@ function readAllDataFromApi(): void {
         .all([
             getTeamsPromise("nhl"),
             getTeamsPromise("nba"),
-            getTeamsPromise("nfl")
+            getTeamsPromise("nfl"),
+            getTeamsPromise("mlb")
         ])
         .then(_.flatMap)
 
@@ -214,7 +214,8 @@ function readAllDataFromApi(): void {
                 .all([
                     getGamesPromise("nhl", teams),
                     getGamesPromise("nba", teams),
-                    getGamesPromise("nfl", teams)
+                    getGamesPromise("nfl", teams),
+                    getGamesPromise("mlb", teams)
                 ])
                 .then(_.flatMap)
                 .tap((games: Array<Game>) => s3.putObject({
@@ -227,7 +228,8 @@ function readAllDataFromApi(): void {
                 .all([
                     getPlayersPromise("nhl", teams),
                     getPlayersPromise("nba", teams),
-                    getPlayersPromise("nfl", teams)
+                    getPlayersPromise("nfl", teams),
+                    getPlayersPromise("mlb", teams)
                 ])
                 .then(_.flatMap)
                 .tap((players: Array<PlayerTeam>) => s3.putObject({
@@ -286,7 +288,7 @@ module.exports.players = (event: EventPayload, context, callback: Callback): voi
         callback(null, {
             statusCode: 200,
             headers: {
-                Expires: new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + weekInMs).toUTCString()
             },
             body: JSON.stringify([])
         })
@@ -299,7 +301,7 @@ module.exports.players = (event: EventPayload, context, callback: Callback): voi
         callback(null, {
             statusCode: 200,
             headers: {
-                Expires: new Date(Date.now() + yearInMs).toUTCString()
+                Expires: new Date(Date.now() + weekInMs).toUTCString()
             },
             body: JSON.stringify([])
         })
@@ -319,7 +321,7 @@ module.exports.players = (event: EventPayload, context, callback: Callback): voi
             headers: {
                 Expires: new Date(Date.now() + dayInMs).toUTCString()
             },
-            body: JSON.stringify(players.filter((player: PlayerTeam) => player.team.id === teamId))
+            body: JSON.stringify(players.filter((player: PlayerTeam) => player.team && player.team.id === teamId))
         }))
 }
 
